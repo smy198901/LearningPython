@@ -1,7 +1,10 @@
 import itchat
 from itchat.content import *
 import xlrd
-	
+import pymysql
+import os
+
+
 #自动添加好友，并打招呼
 @itchat.msg_register(FRIENDS)
 def auto_add_friend(msg):
@@ -11,22 +14,24 @@ def auto_add_friend(msg):
 #根据关键字自动回复
 @itchat.msg_register([TEXT,PICTURE,NOTE,RECORDING,ATTACHMENT,VIDEO])
 def auto_reply(msg):
+	db = pymysql.connect("localhost","root","root","zhwhb")
+	cursor = db.cursor()
 	if msg['Type'] == 'Text':
-		workbook = xlrd.open_workbook('C:\\Users\\lenovo\\Desktop\\商户清单.xls')
-		sheet = workbook.sheets()[0]
-		flag = False
-		reply_msg = '[自动回复]\n没有找到该商户'
-		for i in range(sheet.nrows):
-			str = sheet.row_values(i)
-			if msg['Text'] in str[0]:
-				flag = True
-				reply_msg = '[自动回复]\n商户名称：'+str[0]+'\n结算类型：'+str[1]
-				itchat.send_msg(reply_msg,toUserName='filehelper')
+		message = msg['Text']#获取文本信息
+		reply_msg = '[自动回复]'
+		if message[0:3] == "问题-":
+			#当符合问题关键字时，做以下操作
+			str_message = message[3:]
+			cursor.execute("SELECT *FROM cost limit 2")
+			data = cursor.fetchall()#获取所有结果
+			for row in data:
+				reply_msg = reply_msg + "\n" + str(row[0]) + ":" + str(row[1])
+		itchat.send_msg(reply_msg,toUserName=msg['FromUserName'])
 
-		if flag == False:
-			itchat.send_msg(reply_msg,toUserName='filehelper')
-	# else:
-	# 	itchat.send_msg("请使用文本信息",msg['FromUserName'])
+		db.close()
+	else:
+		itchat.send_msg("[自动回复]\n无法识别",toUserName=msg['FromUserName'])
+		itchat.send_msg("[自动回复]\n123",toUserName=msg['FromUserName'])
 
 itchat.auto_login(hotReload=True)
 itchat.run()
